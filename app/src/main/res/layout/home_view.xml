@@ -11,7 +11,7 @@
   <FrameLayout
       android:layout_width="match_parent"
       android:layout_height="@dimen/actionbar_dimen"
-      android:background="@android:color/holo_blue_dark"
+      android:background="@color/dark_gray"
       >
 
     <ImageView
@@ -61,7 +61,8 @@
         android:layout_gravity="start"
         android:gravity="center"
         android:text="@string/drawer_hint"
-        android:background="@android:color/holo_orange_light"
+        android:textColor="@color/light_gray"
+        android:background="@color/darker_gray"
         />
 
   </android.support.v4.widget.DrawerLayout>

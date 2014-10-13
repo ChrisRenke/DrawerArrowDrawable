@@ -40,6 +40,7 @@ public class DrawerArrowSample extends Activity {
     final Resources resources = getResources();
 
     drawerArrowDrawable = new DrawerArrowDrawable(resources);
+    drawerArrowDrawable.setStrokeColor(resources.getColor(R.color.light_gray));
     imageView.setImageDrawable(drawerArrowDrawable);
 
     drawer.setDrawerListener(new DrawerLayout.SimpleDrawerListener() {
@@ -83,9 +84,9 @@ public class DrawerArrowSample extends Activity {
         drawerArrowDrawable = new DrawerArrowDrawable(resources, rounded);
         drawerArrowDrawable.setParameter(offset);
         drawerArrowDrawable.setFlip(flipped);
+        drawerArrowDrawable.setStrokeColor(resources.getColor(R.color.light_gray));
 
         imageView.setImageDrawable(drawerArrowDrawable);
-
       }
     });
   }

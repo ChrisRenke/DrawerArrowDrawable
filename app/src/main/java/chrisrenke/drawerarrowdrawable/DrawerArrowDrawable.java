@@ -23,7 +23,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.graphics.Rect;
-import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
@@ -43,39 +42,19 @@ public class DrawerArrowDrawable extends Drawable {
 
   /** Paths were generated at a 3px/dp density; this is the scale factor for different densities. */
   private final static float PATH_GEN_DENSITY = 3;
-  private final static float STROKE_WIDTH_DP = 2;
+
+
+  /** Paths were generated with at this size for {@link DrawerArrowDrawable#PATH_GEN_DENSITY}. */
   private final static float DIMEN_DP = 23.5f;
 
-  private final static Path topA = new Path();
-  private final static Path topB = new Path();
-  private final static Path middleA = new Path();
-  private final static Path middleB = new Path();
-  private final static Path bottomB = new Path();
-  private final static Path bottomA = new Path();
+  /**
+   * Paths were generated targeting this stroke width to form the arrowhead properly, modification
+   * may cause the arrow to not for nicely.
+   */
+  private final static float STROKE_WIDTH_DP = 2;
 
-  static {
-    topA.moveTo(36.807f, 60.69f);
-    topA.rCubicTo(20.184f, 1.858f, 34.812f, -20.915f, 23.086f, -43.732f);
-    topA.cubicTo(48.648f, -4.917f, 15.125f, -0.167f, 5.041f, 20f);
-    topB.moveTo(8.92f, 32.936f);
-    topB.rCubicTo(0f, 17.54f, 13.887f, 30.381f, 24.716f, 30.381f);
-    topB.rCubicTo(35.824f, 0f, 35.238f, -32.419f, 31.322f, -43.317f);
-
-    middleA.moveTo(62f, 35f);
-    middleA.rCubicTo(0f, -7.833f, -8.25f, -28.209f, -27f, -28.209f);
-    middleA.cubicTo(16.25f, 6.791f, 5.041f, 23.25f, 5.041f, 35f);
-    middleB.moveTo(11.054f, 35f);
-    middleB.rCubicTo(0f, 5f, 3.113f, 26.416f, 23.946f, 26.416f);
-    middleB.rCubicTo(20.833f, 0f, 29.959f, -14.583f, 29.959f, -26.416f);
-
-    bottomA.moveTo(36.801f, 9.101f);
-    bottomA.cubicTo(8.083f, 4.5f, -1.584f, 29.583f, 5.041f, 50.212f);
-    bottomB.moveTo(8.906f, 37.059f);
-    bottomB.rCubicTo(0f, 14.085f, 15.535f, 27.915f, 31.061f, 27.915f);
-    bottomB.rCubicTo(15.523f, 0f, 25.1f, -15.015f, 25.1f, -15.015f);
-  }
-
-  private final Rect dimens;
+  private final Rect bounds;
+  private final float halfStrokeWidthPixel;
   private final float lengthBottomB;
   private final float lengthBottomA;
   private final float lengthMiddleA;
@@ -89,7 +68,6 @@ public class DrawerArrowDrawable extends Drawable {
   private final PathMeasure measureMiddleB;
   private final PathMeasure measureTopA;
   private final PathMeasure measureTopB;
-  private final float halfStrokeWidthPixel;
   private final boolean rounded;
 
   private boolean flip;
@@ -117,9 +95,17 @@ public class DrawerArrowDrawable extends Drawable {
     linePaint.setStrokeWidth(strokeWidthPixel);
 
     int dimen = (int) (DIMEN_DP * density);
-    dimens = new Rect(0, 0, dimen, dimen);
+    bounds = new Rect(0, 0, dimen, dimen);
 
     // Top Line - 9 to 3 rotation
+    Path topA = new Path();
+    topA.moveTo(36.807f, 60.69f);
+    topA.rCubicTo(20.184f, 1.858f, 34.812f, -20.915f, 23.086f, -43.732f);
+    topA.cubicTo(48.648f, -4.917f, 15.125f, -0.167f, 5.041f, 20f);
+    Path topB = new Path();
+    topB.moveTo(8.92f, 32.936f);
+    topB.rCubicTo(0f, 17.54f, 13.887f, 30.381f, 24.716f, 30.381f);
+    topB.rCubicTo(35.824f, 0f, 35.238f, -32.419f, 31.322f, -43.317f);
     scalePath(topA, density);
     scalePath(topB, density);
     measureTopA = new PathMeasure(topA, false);
@@ -128,6 +114,14 @@ public class DrawerArrowDrawable extends Drawable {
     lengthTopB = measureTopB.getLength();
 
     // Middle Line - 9 to 3 rotation
+    Path middleA = new Path();
+    middleA.moveTo(62f, 35f);
+    middleA.rCubicTo(0f, -7.833f, -8.25f, -28.209f, -27f, -28.209f);
+    middleA.cubicTo(16.25f, 6.791f, 5.041f, 23.25f, 5.041f, 35f);
+    Path middleB = new Path();
+    middleB.moveTo(11.054f, 35f);
+    middleB.rCubicTo(0f, 5f, 3.113f, 26.416f, 23.946f, 26.416f);
+    middleB.rCubicTo(20.833f, 0f, 29.959f, -14.583f, 29.959f, -26.416f);
     scalePath(middleA, density);
     scalePath(middleB, density);
     measureMiddleA = new PathMeasure(middleA, false);
@@ -136,6 +130,13 @@ public class DrawerArrowDrawable extends Drawable {
     lengthMiddleB = measureMiddleB.getLength();
 
     // Bottom Line - 9 to 3 rotation
+    Path bottomA = new Path();
+    bottomA.moveTo(36.801f, 9.101f);
+    bottomA.cubicTo(8.083f, 4.5f, -1.584f, 29.583f, 5.041f, 50.212f);
+    Path bottomB = new Path();
+    bottomB.moveTo(8.906f, 37.059f);
+    bottomB.rCubicTo(0f, 14.085f, 15.535f, 27.915f, 31.061f, 27.915f);
+    bottomB.rCubicTo(15.523f, 0f, 25.1f, -15.015f, 25.1f, -15.015f);
     scalePath(bottomA, density);
     scalePath(bottomB, density);
     measureBottomA = new PathMeasure(bottomA, false);
@@ -145,11 +146,11 @@ public class DrawerArrowDrawable extends Drawable {
   }
 
   @Override public int getIntrinsicHeight() {
-    return dimens.height();
+    return bounds.height();
   }
 
   @Override public int getIntrinsicWidth() {
-    return dimens.width();
+    return bounds.width();
   }
 
   @Override public void draw(Canvas canvas) {
@@ -222,17 +223,15 @@ public class DrawerArrowDrawable extends Drawable {
    * ends drawn for {@link Cap#ROUND} style lines.
    */
   private void insetPointsForRoundCaps() {
-    vX = (coordsB[0] - coordsA[0]);
-    vY = (coordsB[1] - coordsA[1]);
+    vX = coordsB[0] - coordsA[0];
+    vY = coordsB[1] - coordsA[1];
 
     magnitude = (float) sqrt((vX * vX + vY * vY));
-
     paramA = (magnitude - halfStrokeWidthPixel) / magnitude;
     paramB = halfStrokeWidthPixel / magnitude;
 
     coordsA[0] = coordsB[0] - (vX * paramA);
     coordsA[1] = coordsB[1] - (vY * paramA);
-
     coordsB[0] = coordsB[0] - (vX * paramB);
     coordsB[1] = coordsB[1] - (vY * paramB);
   }
