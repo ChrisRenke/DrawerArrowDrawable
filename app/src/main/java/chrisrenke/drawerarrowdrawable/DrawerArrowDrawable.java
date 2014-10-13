@@ -27,11 +27,14 @@ import android.view.View;
 
 import static android.graphics.Color.BLACK;
 import static android.graphics.Paint.ANTI_ALIAS_FLAG;
+import static android.graphics.Paint.Cap;
 import static android.graphics.Paint.Cap.BUTT;
+import static android.graphics.Paint.Cap.ROUND;
 import static android.graphics.Paint.SUBPIXEL_TEXT_FLAG;
 import static android.graphics.Paint.Style.STROKE;
 import static android.graphics.PixelFormat.TRANSLUCENT;
-import static android.support.v4.widget.DrawerLayout.*;
+import static android.support.v4.widget.DrawerLayout.DrawerListener;
+import static java.lang.Math.sqrt;
 
 /** A drawable that rotates between a drawer icon and a back arrow based on parameter. */
 public class DrawerArrowDrawable extends Drawable {
@@ -43,8 +46,8 @@ public class DrawerArrowDrawable extends Drawable {
   private final static Path topB = new Path();
   private final static Path middleA = new Path();
   private final static Path middleB = new Path();
-  private final static Path bottomA = new Path();
   private final static Path bottomB = new Path();
+  private final static Path bottomA = new Path();
 
   static {
     topA.moveTo(36.807f, 60.69f);
@@ -61,15 +64,13 @@ public class DrawerArrowDrawable extends Drawable {
     middleB.rCubicTo(0f, 5f, 3.113f, 26.416f, 23.946f, 26.416f);
     middleB.rCubicTo(20.833f, 0f, 29.959f, -14.583f, 29.959f, -26.416f);
 
-    bottomA.moveTo(8.906f, 37.059f);
-    bottomA.rCubicTo(0f, 14.085f, 15.535f, 27.915f, 31.061f, 27.915f);
-    bottomA.rCubicTo(15.523f, 0f, 25.1f, -15.015f, 25.1f, -15.015f);
-    bottomB.moveTo(36.801f, 9.101f);
-    bottomB.cubicTo(8.083f, 4.5f, -1.584f, 29.583f, 5.041f, 50.212f);
+    bottomA.moveTo(36.801f, 9.101f);
+    bottomA.cubicTo(8.083f, 4.5f, -1.584f, 29.583f, 5.041f, 50.212f);
+    bottomB.moveTo(8.906f, 37.059f);
+    bottomB.rCubicTo(0f, 14.085f, 15.535f, 27.915f, 31.061f, 27.915f);
+    bottomB.rCubicTo(15.523f, 0f, 25.1f, -15.015f, 25.1f, -15.015f);
   }
 
-  private final float coordsA[] = { 0f, 0f };
-  private final float coordsB[] = { 0f, 0f };
   private final Rect dimens;
   private final float lengthBottomB;
   private final float lengthBottomA;
@@ -84,18 +85,32 @@ public class DrawerArrowDrawable extends Drawable {
   private final PathMeasure measureMiddleB;
   private final PathMeasure measureTopA;
   private final PathMeasure measureTopB;
+  private final float halfStrokeWidthPixel;
+  private final boolean rounded;
 
   private boolean flip;
   private float parameter;
 
-  public DrawerArrowDrawable(Resources resources) {
-    float density = resources.getDisplayMetrics().density;
+  // Helper fields during drawing calculations.
+  private float vX, vY, magnitude, paramA, paramB;
+  private final float coordsA[] = { 0f, 0f };
+  private final float coordsB[] = { 0f, 0f };
 
-    this.linePaint = new Paint(SUBPIXEL_TEXT_FLAG | ANTI_ALIAS_FLAG);
-    linePaint.setStrokeCap(BUTT);
+  public DrawerArrowDrawable(Resources resources) {
+    this(resources, false);
+  }
+
+  public DrawerArrowDrawable(Resources resources, boolean rounded) {
+    this.rounded = rounded;
+    float density = resources.getDisplayMetrics().density;
+    float strokeWidthPixel = STROKE_WIDTH_DP * density;
+    halfStrokeWidthPixel = strokeWidthPixel / 2;
+
+    linePaint = new Paint(SUBPIXEL_TEXT_FLAG | ANTI_ALIAS_FLAG);
+    linePaint.setStrokeCap(rounded ? ROUND : BUTT);
     linePaint.setColor(BLACK);
     linePaint.setStyle(STROKE);
-    linePaint.setStrokeWidth(STROKE_WIDTH_DP * density);
+    linePaint.setStrokeWidth(strokeWidthPixel);
 
     int dimen = (int) (DIMEN_DP * density);
     dimens = new Rect(0, 0, dimen, dimen);
@@ -133,17 +148,9 @@ public class DrawerArrowDrawable extends Drawable {
       canvas.scale(1f, -1f, getIntrinsicWidth() / 2, getIntrinsicHeight() / 2);
     }
 
-    measureMiddleA.getPosTan(lengthMiddleA * (1 - parameter), coordsA, null);
-    measureMiddleB.getPosTan(lengthMiddleB * (1 - parameter), coordsB, null);
-    canvas.drawLine(coordsA[0], coordsA[1], coordsB[0], coordsB[1], linePaint);
-
-    measureTopA.getPosTan(lengthTopA * (1 - parameter), coordsA, null);
-    measureTopB.getPosTan(lengthTopB * (1 - parameter), coordsB, null);
-    canvas.drawLine(coordsA[0], coordsA[1], coordsB[0], coordsB[1], linePaint);
-
-    measureBottomA.getPosTan(lengthBottomA * (1 - parameter), coordsA, null);
-    measureBottomB.getPosTan(lengthBottomB * (1 - parameter), coordsB, null);
-    canvas.drawLine(coordsA[0], coordsA[1], coordsB[0], coordsB[1], linePaint);
+    drawPathSet(measureTopA, measureTopB, lengthTopA, lengthTopB, canvas);
+    drawPathSet(measureMiddleA, measureMiddleB, lengthMiddleA, lengthMiddleB, canvas);
+    drawPathSet(measureBottomA, measureBottomB, lengthBottomA, lengthBottomB, canvas);
 
     if (flip) canvas.restore();
   }
@@ -167,6 +174,9 @@ public class DrawerArrowDrawable extends Drawable {
    * via {@link DrawerListener#onDrawerSlide(View, float)}'s {@code slideOffset} parameter.
    */
   public void setParameter(float parameter) {
+    if (parameter > 1 || parameter < 0) {
+      throw new IllegalArgumentException("Value must be between 1 and zero inclusive!");
+    }
     this.parameter = parameter;
     invalidateSelf();
   }
@@ -178,5 +188,37 @@ public class DrawerArrowDrawable extends Drawable {
   public void setFlip(boolean flip) {
     this.flip = flip;
     invalidateSelf();
+  }
+
+  /**
+   * Draw a line between the points defined on the paths backing {@code measureA} and
+   * {@code measureB} at the current parameter.
+   */
+  private void drawPathSet(PathMeasure measureA, PathMeasure measureB, float lengthA, float lengthB,
+      Canvas canvas) {
+    measureA.getPosTan(lengthA * (1 - parameter), coordsA, null);
+    measureB.getPosTan(lengthB * (1 - parameter), coordsB, null);
+    if (rounded) insetPointsForRoundCaps();
+    canvas.drawLine(coordsA[0], coordsA[1], coordsB[0], coordsB[1], linePaint);
+  }
+
+  /**
+   * Insets the end points of the current line to account for the protruding
+   * ends drawn for {@link Cap#ROUND} style lines.
+   */
+  private void insetPointsForRoundCaps() {
+    vX = (coordsB[0] - coordsA[0]);
+    vY = (coordsB[1] - coordsA[1]);
+
+    magnitude = (float) sqrt((vX * vX + vY * vY));
+
+    paramA = (magnitude - halfStrokeWidthPixel) / magnitude;
+    paramB = halfStrokeWidthPixel / magnitude;
+
+    coordsA[0] = coordsB[0] - (vX * paramA);
+    coordsA[1] = coordsB[1] - (vY * paramA);
+
+    coordsB[0] = coordsB[0] - (vX * paramB);
+    coordsB[1] = coordsB[1] - (vY * paramB);
   }
 }
