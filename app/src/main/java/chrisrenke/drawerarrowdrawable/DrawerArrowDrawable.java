@@ -18,10 +18,12 @@ package chrisrenke.drawerarrowdrawable;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
@@ -39,6 +41,8 @@ import static java.lang.Math.sqrt;
 /** A drawable that rotates between a drawer icon and a back arrow based on parameter. */
 public class DrawerArrowDrawable extends Drawable {
 
+  /** Paths were generated at a 3px/dp density; this is the scale factor for different densities. */
+  private final static float PATH_GEN_DENSITY = 3;
   private final static float STROKE_WIDTH_DP = 2;
   private final static float DIMEN_DP = 23.5f;
 
@@ -116,18 +120,24 @@ public class DrawerArrowDrawable extends Drawable {
     dimens = new Rect(0, 0, dimen, dimen);
 
     // Top Line - 9 to 3 rotation
+    scalePath(topA, density);
+    scalePath(topB, density);
     measureTopA = new PathMeasure(topA, false);
     measureTopB = new PathMeasure(topB, false);
     lengthTopA = measureTopA.getLength();
     lengthTopB = measureTopB.getLength();
 
     // Middle Line - 9 to 3 rotation
+    scalePath(middleA, density);
+    scalePath(middleB, density);
     measureMiddleA = new PathMeasure(middleA, false);
     measureMiddleB = new PathMeasure(middleB, false);
     lengthMiddleA = measureMiddleA.getLength();
     lengthMiddleB = measureMiddleB.getLength();
 
     // Bottom Line - 9 to 3 rotation
+    scalePath(bottomA, density);
+    scalePath(bottomB, density);
     measureBottomA = new PathMeasure(bottomA, false);
     measureBottomB = new PathMeasure(bottomB, false);
     lengthBottomA = measureBottomA.getLength();
@@ -167,6 +177,11 @@ public class DrawerArrowDrawable extends Drawable {
 
   @Override public int getOpacity() {
     return TRANSLUCENT;
+  }
+
+  public void setStrokeColor(int color) {
+    linePaint.setColor(color);
+    invalidateSelf();
   }
 
   /**
@@ -220,5 +235,16 @@ public class DrawerArrowDrawable extends Drawable {
 
     coordsB[0] = coordsB[0] - (vX * paramB);
     coordsB[1] = coordsB[1] - (vY * paramB);
+  }
+
+  /**
+   * Scales the paths to the given screen density. If the density matches the
+   * {@link DrawerArrowDrawable#PATH_GEN_DENSITY}, no scaling needs to be done.
+   */
+  private void scalePath(Path path, float density) {
+    if (density == PATH_GEN_DENSITY) return;
+    Matrix scaleMatrix = new Matrix();
+    scaleMatrix.setScale(density / PATH_GEN_DENSITY, density / PATH_GEN_DENSITY, 0, 0);
+    path.transform(scaleMatrix);
   }
 }

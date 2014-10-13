@@ -45,17 +45,17 @@ public class DrawerArrowSample extends Activity {
     drawer.setDrawerListener(new DrawerLayout.SimpleDrawerListener() {
       @Override public void onDrawerSlide(View drawerView, float slideOffset) {
         offset = slideOffset;
+
+        // Sometimes slideOffset ends up so close to but not quite 1 or 0.
+        if (slideOffset >= .995) {
+          flipped = true;
+          drawerArrowDrawable.setFlip(flipped);
+        } else if (slideOffset <= .005) {
+          flipped = false;
+          drawerArrowDrawable.setFlip(flipped);
+        }
+
         drawerArrowDrawable.setParameter(offset);
-      }
-
-      @Override public void onDrawerOpened(View drawerView) {
-        flipped = true;
-        drawerArrowDrawable.setFlip(true);
-      }
-
-      @Override public void onDrawerClosed(View drawerView) {
-        flipped = false;
-        drawerArrowDrawable.setFlip(false);
       }
     });
 
