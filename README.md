@@ -3,7 +3,7 @@ DrawerArrowDrawable
 
 A simple drawable backport of the new drawer-indicator/back-arrow rotating drawable from the upcoming Android L.
 
-![](display/drawer_arrow_drawable_sample.gif)
+![](http://chrisrenke.com/assets/inline_drawerarrowdrawable_sample.gif)
 
 License
 --------
