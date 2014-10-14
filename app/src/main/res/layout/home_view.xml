@@ -32,6 +32,7 @@
         android:layout_gravity="end"
         android:text="@string/rounded"
         android:textStyle="bold"
+        android:textColor="@color/light_gray"
         android:gravity="center"
         android:background="@drawable/drawer_selector"
         />

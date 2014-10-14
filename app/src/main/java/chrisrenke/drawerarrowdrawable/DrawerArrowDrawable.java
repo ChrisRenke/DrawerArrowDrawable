@@ -40,9 +40,79 @@ import static java.lang.Math.sqrt;
 /** A drawable that rotates between a drawer icon and a back arrow based on parameter. */
 public class DrawerArrowDrawable extends Drawable {
 
+  /**
+   * Joins two {@link Path}s as if they were one where the first 50% of the path is {@code
+   * PathFirst} and the second 50% of the path is {@code pathSecond}.
+   */
+  private static class JoinedPath {
+
+    private final PathMeasure measureFirst;
+    private final PathMeasure measureSecond;
+    private final float lengthFirst;
+    private final float lengthSecond;
+
+    private JoinedPath(Path pathFirst, Path pathSecond) {
+      measureFirst = new PathMeasure(pathFirst, false);
+      measureSecond = new PathMeasure(pathSecond, false);
+      lengthFirst = measureFirst.getLength();
+      lengthSecond = measureSecond.getLength();
+    }
+
+    private void getPointOnLine(float parameter, float[] coords) {
+      if (parameter <= .5f) {
+        parameter *= 2;
+        measureFirst.getPosTan(lengthFirst * parameter, coords, null);
+      } else {
+        parameter -= .5f;
+        parameter *= 2;
+        measureSecond.getPosTan(lengthSecond * parameter, coords, null);
+      }
+    }
+  }
+
+  /** Draws a line between two {@link JoinedPath}s at distance {@code parameter} along each path. */
+  private class BridgingLine {
+
+    private final JoinedPath pathA;
+    private final JoinedPath pathB;
+
+    private BridgingLine(JoinedPath pathA, JoinedPath pathB) {
+      this.pathA = pathA;
+      this.pathB = pathB;
+    }
+
+    /**
+     * Draw a line between the points defined on the paths backing {@code measureA} and
+     * {@code measureB} at the current parameter.
+     */
+    private void draw(Canvas canvas) {
+      pathA.getPointOnLine(parameter, coordsA);
+      pathB.getPointOnLine(parameter, coordsB);
+      if (rounded) insetPointsForRoundCaps();
+      canvas.drawLine(coordsA[0], coordsA[1], coordsB[0], coordsB[1], linePaint);
+    }
+
+    /**
+     * Insets the end points of the current line to account for the protruding
+     * ends drawn for {@link Cap#ROUND} style lines.
+     */
+    private void insetPointsForRoundCaps() {
+      vX = coordsB[0] - coordsA[0];
+      vY = coordsB[1] - coordsA[1];
+
+      magnitude = (float) sqrt((vX * vX + vY * vY));
+      paramA = (magnitude - halfStrokeWidthPixel) / magnitude;
+      paramB = halfStrokeWidthPixel / magnitude;
+
+      coordsA[0] = coordsB[0] - (vX * paramA);
+      coordsA[1] = coordsB[1] - (vY * paramA);
+      coordsB[0] = coordsB[0] - (vX * paramB);
+      coordsB[1] = coordsB[1] - (vY * paramB);
+    }
+  }
+
   /** Paths were generated at a 3px/dp density; this is the scale factor for different densities. */
   private final static float PATH_GEN_DENSITY = 3;
-
 
   /** Paths were generated with at this size for {@link DrawerArrowDrawable#PATH_GEN_DENSITY}. */
   private final static float DIMEN_DP = 23.5f;
@@ -53,21 +123,13 @@ public class DrawerArrowDrawable extends Drawable {
    */
   private final static float STROKE_WIDTH_DP = 2;
 
+  private BridgingLine topLine;
+  private BridgingLine middleLine;
+  private BridgingLine bottomLine;
+
   private final Rect bounds;
   private final float halfStrokeWidthPixel;
-  private final float lengthBottomB;
-  private final float lengthBottomA;
-  private final float lengthMiddleA;
-  private final float lengthMiddleB;
-  private final float lengthTopA;
-  private final float lengthTopB;
   private final Paint linePaint;
-  private final PathMeasure measureBottomA;
-  private final PathMeasure measureBottomB;
-  private final PathMeasure measureMiddleA;
-  private final PathMeasure measureMiddleB;
-  private final PathMeasure measureTopA;
-  private final PathMeasure measureTopB;
   private final boolean rounded;
 
   private boolean flip;
@@ -97,52 +159,74 @@ public class DrawerArrowDrawable extends Drawable {
     int dimen = (int) (DIMEN_DP * density);
     bounds = new Rect(0, 0, dimen, dimen);
 
-    // Top Line - 9 to 3 rotation
-    Path topA = new Path();
-    topA.moveTo(36.807f, 60.69f);
-    topA.rCubicTo(20.184f, 1.858f, 34.812f, -20.915f, 23.086f, -43.732f);
-    topA.cubicTo(48.648f, -4.917f, 15.125f, -0.167f, 5.041f, 20f);
-    Path topB = new Path();
-    topB.moveTo(8.92f, 32.936f);
-    topB.rCubicTo(0f, 17.54f, 13.887f, 30.381f, 24.716f, 30.381f);
-    topB.rCubicTo(35.824f, 0f, 35.238f, -32.419f, 31.322f, -43.317f);
-    scalePath(topA, density);
-    scalePath(topB, density);
-    measureTopA = new PathMeasure(topA, false);
-    measureTopB = new PathMeasure(topB, false);
-    lengthTopA = measureTopA.getLength();
-    lengthTopB = measureTopB.getLength();
+    Path first, second;
+    JoinedPath joinedA, joinedB;
 
-    // Middle Line - 9 to 3 rotation
-    Path middleA = new Path();
-    middleA.moveTo(62f, 35f);
-    middleA.rCubicTo(0f, -7.833f, -8.25f, -28.209f, -27f, -28.209f);
-    middleA.cubicTo(16.25f, 6.791f, 5.041f, 23.25f, 5.041f, 35f);
-    Path middleB = new Path();
-    middleB.moveTo(11.054f, 35f);
-    middleB.rCubicTo(0f, 5f, 3.113f, 26.416f, 23.946f, 26.416f);
-    middleB.rCubicTo(20.833f, 0f, 29.959f, -14.583f, 29.959f, -26.416f);
-    scalePath(middleA, density);
-    scalePath(middleB, density);
-    measureMiddleA = new PathMeasure(middleA, false);
-    measureMiddleB = new PathMeasure(middleB, false);
-    lengthMiddleA = measureMiddleA.getLength();
-    lengthMiddleB = measureMiddleB.getLength();
+    // Top
+    first = new Path();
+    first.moveTo(5.042f, 20f);
+    first.rCubicTo(8.125f, -16.317f, 39.753f, -27.851f, 55.49f, -2.765f);
+    second = new Path();
+    second.moveTo(60.531f, 17.235f);
+    second.rCubicTo(11.301f, 18.015f, -3.699f, 46.083f, -23.725f, 43.456f);
+    scalePath(first, density);
+    scalePath(second, density);
+    joinedA = new JoinedPath(first, second);
 
-    // Bottom Line - 9 to 3 rotation
-    Path bottomA = new Path();
-    bottomA.moveTo(36.801f, 9.101f);
-    bottomA.cubicTo(8.083f, 4.5f, -1.584f, 29.583f, 5.041f, 50.212f);
-    Path bottomB = new Path();
-    bottomB.moveTo(8.906f, 37.059f);
-    bottomB.rCubicTo(0f, 14.085f, 15.535f, 27.915f, 31.061f, 27.915f);
-    bottomB.rCubicTo(15.523f, 0f, 25.1f, -15.015f, 25.1f, -15.015f);
-    scalePath(bottomA, density);
-    scalePath(bottomB, density);
-    measureBottomA = new PathMeasure(bottomA, false);
-    measureBottomB = new PathMeasure(bottomB, false);
-    lengthBottomA = measureBottomA.getLength();
-    lengthBottomB = measureBottomB.getLength();
+    first = new Path();
+    first.moveTo(64.959f, 20f);
+    first.rCubicTo(4.457f, 16.75f, 1.512f, 37.982f, -22.557f, 42.699f);
+    second = new Path();
+    second.moveTo(42.402f, 62.699f);
+    second.cubicTo(18.333f, 67.418f, 8.807f, 45.646f, 8.807f, 32.823f);
+    scalePath(first, density);
+    scalePath(second, density);
+    joinedB = new JoinedPath(first, second);
+    topLine = new BridgingLine(joinedA, joinedB);
+
+    // Middle
+    first = new Path();
+    first.moveTo(5.042f, 35f);
+    first.cubicTo(5.042f, 20.333f, 18.625f, 6.791f, 35f, 6.791f);
+    second = new Path();
+    second.moveTo(35f, 6.791f);
+    second.rCubicTo(16.083f, 0f, 26.853f, 16.702f, 26.853f, 28.209f);
+    scalePath(first, density);
+    scalePath(second, density);
+    joinedA = new JoinedPath(first, second);
+
+    first = new Path();
+    first.moveTo(64.959f, 35f);
+    first.rCubicTo(0f, 10.926f, -8.709f, 26.416f, -29.958f, 26.416f);
+    second = new Path();
+    second.moveTo(35f, 61.416f);
+    second.rCubicTo(-7.5f, 0f, -23.946f, -8.211f, -23.946f, -26.416f);
+    scalePath(first, density);
+    scalePath(second, density);
+    joinedB = new JoinedPath(first, second);
+    middleLine = new BridgingLine(joinedA, joinedB);
+
+    // Bottom
+    first = new Path();
+    first.moveTo(5.042f, 50f);
+    first.cubicTo(2.5f, 43.312f, 0.013f, 26.546f, 9.475f, 17.346f);
+    second = new Path();
+    second.moveTo(9.475f, 17.346f);
+    second.rCubicTo(9.462f, -9.2f, 24.188f, -10.353f, 27.326f, -8.245f);
+    scalePath(first, density);
+    scalePath(second, density);
+    joinedA = new JoinedPath(first, second);
+
+    first = new Path();
+    first.moveTo(64.959f, 50f);
+    first.rCubicTo(-7.021f, 10.08f, -20.584f, 19.699f, -37.361f, 12.74f);
+    second = new Path();
+    second.moveTo(27.598f, 62.699f);
+    second.rCubicTo(-15.723f, -6.521f, -18.8f, -23.543f, -18.8f, -25.642f);
+    scalePath(first, density);
+    scalePath(second, density);
+    joinedB = new JoinedPath(first, second);
+    bottomLine = new BridgingLine(joinedA, joinedB);
   }
 
   @Override public int getIntrinsicHeight() {
@@ -159,9 +243,9 @@ public class DrawerArrowDrawable extends Drawable {
       canvas.scale(1f, -1f, getIntrinsicWidth() / 2, getIntrinsicHeight() / 2);
     }
 
-    drawPathSet(measureTopA, measureTopB, lengthTopA, lengthTopB, canvas);
-    drawPathSet(measureMiddleA, measureMiddleB, lengthMiddleA, lengthMiddleB, canvas);
-    drawPathSet(measureBottomA, measureBottomB, lengthBottomA, lengthBottomB, canvas);
+    topLine.draw(canvas);
+    middleLine.draw(canvas);
+    bottomLine.draw(canvas);
 
     if (flip) canvas.restore();
   }
@@ -207,40 +291,10 @@ public class DrawerArrowDrawable extends Drawable {
   }
 
   /**
-   * Draw a line between the points defined on the paths backing {@code measureA} and
-   * {@code measureB} at the current parameter.
-   */
-  private void drawPathSet(PathMeasure measureA, PathMeasure measureB, float lengthA, float lengthB,
-      Canvas canvas) {
-    measureA.getPosTan(lengthA * (1 - parameter), coordsA, null);
-    measureB.getPosTan(lengthB * (1 - parameter), coordsB, null);
-    if (rounded) insetPointsForRoundCaps();
-    canvas.drawLine(coordsA[0], coordsA[1], coordsB[0], coordsB[1], linePaint);
-  }
-
-  /**
-   * Insets the end points of the current line to account for the protruding
-   * ends drawn for {@link Cap#ROUND} style lines.
-   */
-  private void insetPointsForRoundCaps() {
-    vX = coordsB[0] - coordsA[0];
-    vY = coordsB[1] - coordsA[1];
-
-    magnitude = (float) sqrt((vX * vX + vY * vY));
-    paramA = (magnitude - halfStrokeWidthPixel) / magnitude;
-    paramB = halfStrokeWidthPixel / magnitude;
-
-    coordsA[0] = coordsB[0] - (vX * paramA);
-    coordsA[1] = coordsB[1] - (vY * paramA);
-    coordsB[0] = coordsB[0] - (vX * paramB);
-    coordsB[1] = coordsB[1] - (vY * paramB);
-  }
-
-  /**
    * Scales the paths to the given screen density. If the density matches the
    * {@link DrawerArrowDrawable#PATH_GEN_DENSITY}, no scaling needs to be done.
    */
-  private void scalePath(Path path, float density) {
+  private static void scalePath(Path path, float density) {
     if (density == PATH_GEN_DENSITY) return;
     Matrix scaleMatrix = new Matrix();
     scaleMatrix.setScale(density / PATH_GEN_DENSITY, density / PATH_GEN_DENSITY, 0, 0);
