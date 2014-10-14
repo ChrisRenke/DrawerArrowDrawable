@@ -58,6 +58,13 @@ public class DrawerArrowDrawable extends Drawable {
       lengthSecond = measureSecond.getLength();
     }
 
+    /**
+     * Returns a point on this curve at the given {@code parameter}.
+     * For {@code parameter} values less than .5f, the first path will drive the point.
+     * For {@code parameter} values greater than .5f, the second path will drive the point.
+     * For {@code parameter} equal to .5f, the point will be the point where the two
+     * internal paths connect.
+     */
     private void getPointOnLine(float parameter, float[] coords) {
       if (parameter <= .5f) {
         parameter *= 2;
